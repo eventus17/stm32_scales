@@ -72,116 +72,117 @@ typedef union {
   */
 int main(void)
 {
-  int cnt_raw = 0;
-  int prev_value = 0;
-  int prev_value_count = 0;
-  int tare = 0;
-  int i;
-  int is_intial = 1;
-  int is_tare_setted = 0;
+	int cnt_raw = 0;
+	int prev_value = 0;
+	int prev_value_count = 0;
+	int tare = 0;
+	int i;
+	int is_intial = 1;
+	int is_tare_setted = 0;
 
+	LCDPowerOn=0;
 
+	sc_t scale;
+	scale.f = DEFAULT_SCALE;
 
-  LCDPowerOn=0;
-
-  sc_t scale;
-  scale.f = DEFAULT_SCALE;
-  /* System configuration */
-  SystemConfiguration();
-  GPIO_SetBits(LCD_Bias_Port, LCD_BiasPlus_Pin);
+	/* System configuration */
+	SystemConfiguration();
+	GPIO_SetBits(LCD_Bias_Port, LCD_BiasPlus_Pin);
 
 do_calc_scale:
-  if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_1) == Bit_RESET) {
-	 LCDPowerOn=2;
-	 LCD_WriteCfg();
-	 cnt_raw = HX711_Average_Value(1, 8);
-	 printf("do configuration!\r\n");
-	 while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_1) == Bit_RESET) {}
+	if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_1) == Bit_RESET) {
+		LCDPowerOn=2;
+		LCD_WriteCfg();
+		cnt_raw = HX711_Average_Value(1, 8);
+		printf("do configuration!\r\n");
+		while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_1) == Bit_RESET) {}
+		VoltageFlag = (PWR_GetFlagStatus(PWR_FLAG_PVDO)==SET) ? 0x800 : 0x000;
+		if(VoltageFlag)
+			goto measures_begin;
+			//TODO: do configuration!
+		printf("Calculating scale...\r\n");
+		Delay(500000);
+		printf("Getting zero weight....\r\n");
+		cnt_raw = HX711_Average_Value(1, 32);
+		printf("cnt[0.000]: %d => %d\r\n", cnt_raw);
+		LCD_WriteInt(cnt_raw/100);
+		printf("Now put 10.000Kg and measure weight again...\r\n");
+		Delay(500000);
+		for (i=0;i<10;i++) {
+			LCD_WriteNone();
+			Delay(60000);
+			LCD_WriteInt(10000);
+			Delay(60000);
+		}
+		tare = HX711_Average_Value(1, 32);
+		printf("cnt[10.000]: %d\r\n", tare);
+		LCD_WriteInt(tare/100);
+		Delay(1000000);
+		double scale2 = ((double)((double)tare - (double)cnt_raw)) / 10000.0;
+		scale.f = scale2;
+		if(scale.f < 0)
+			scale.f = -scale.f;
+		printf("scale[1/10.000]: %d\r\n", (int)scale.f);
+		LCD_WriteInt(scale.f);
+		Delay(500000);
 
-	 VoltageFlag = (PWR_GetFlagStatus(PWR_FLAG_PVDO)==SET) ? 0x800 : 0x000;
-	 if(VoltageFlag)
-		 goto measures_begin;
-	 //TODO: do configuration!
-     printf("Calculating scale...\r\n");
-     Delay(500000);
-     printf("Getting zero weight....\r\n");
-     cnt_raw = HX711_Average_Value(1, 32);
-     printf("cnt[0.000]: %d => %d\r\n", cnt_raw);
-     LCD_WriteInt(cnt_raw/100);
-     printf("Now put 10.000Kg and measure weight again...\r\n");
-     Delay(500000);
-     for (i=0;i<10;i++) {
-    	 LCD_WriteNone();
-    	 Delay(60000);
-    	 LCD_WriteInt(10000);
-    	 Delay(60000);
-     }
-     tare = HX711_Average_Value(1, 32);
-     printf("cnt[10.000]: %d\r\n", tare);
-     LCD_WriteInt(tare/100);
-     Delay(1000000);
-     double scale2 = ((double)((double)tare - (double)cnt_raw)) / 10000.0;
-     scale.f = scale2;
-     if(scale.f < 0)
-    	 scale.f = -scale.f;
-     printf("scale[1/10.000]: %d\r\n", (int)scale.f);
-     LCD_WriteInt(scale.f);
-     Delay(500000);
-
-     if(scale.f < 35.0 || scale.f > 250.0) {
-    	 printf("scale is too bad: %d!\r\n", (int)scale.f);
-         for (i=0;i<10;i++) {
-        	 LCD_WriteCfg();
-        	 Delay(50000);
-        	 LCD_WriteNone();
-        	 LCD_WriteError();
-        	 Delay(50000);
-         }
-    	 scale.f=DEFAULT_SCALE;
-     } else {
-         FLASH_Unlock();
-         FLASH_ClearFlag(FLASH_FLAG_BSY | FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
-    	 FLASH_ErasePage(0x800FC00);
-         FLASH_ProgramWord(0x800FC04, 0xa5a5a5a5);
-         FLASH_ProgramWord(0x800FC08, scale.u);
-         FLASH_Lock();
-         printf("Done, scale saved!\r\n");
-     }
-  } else {
-	  uint32_t *scale_sign_u32 =  (uint32_t*)0x800FC04;
-	  uint32_t *scale_u32 =  (uint32_t*)0x800FC08;
-	  if(*scale_sign_u32 != 0xa5a5a5a5) {
-		  scale.f = DEFAULT_SCALE;
-		  printf("scale is unknown! needs fixing (%d != %d)!\r\n", *scale_sign_u32, 0xa5a5a5a5);
-		  LCD_WriteLines();
-		  Delay(1000000);
-	  } else {
-		  //scale = *scale_u32;
-		  uint32_t scale_u = *scale_u32;
-		  scale.u = scale_u;
-		  printf("scale is: %u\r\n", (uint32_t) (*scale_u32));
-		  if(scale.u == 0xFFFFFFFF || scale.f == 0.0) {
-			  scale.f = DEFAULT_SCALE;
-			  printf("scale is bad value! needs fixing!\r\n");
-			  LCD_WriteLines();
-			  Delay(1000000);
-		  } else {
-			  LCD_WriteAll();
-		  }
-	  }
-  }
+		if(scale.f < 35.0 || scale.f > 250.0) {
+			printf("scale is too bad: %d!\r\n", (int)scale.f);
+			for (i = 0;i < 10;i++) {
+				LCD_WriteCfg();
+				Delay(50000);
+				LCD_WriteNone();
+				LCD_WriteError();
+				Delay(50000);
+			}
+			scale.f=DEFAULT_SCALE;
+		} else {
+			FLASH_Unlock();
+			FLASH_ClearFlag(FLASH_FLAG_BSY	|
+					FLASH_FLAG_EOP	|
+					FLASH_FLAG_PGERR |
+					FLASH_FLAG_WRPRTERR);
+			FLASH_ErasePage(0x800FC00);
+			FLASH_ProgramWord(0x800FC04, 0xa5a5a5a5);
+			FLASH_ProgramWord(0x800FC08, scale.u);
+			FLASH_Lock();
+			printf("Done, scale saved!\r\n");
+		}
+	} else {
+		uint32_t *scale_sign_u32 =  (uint32_t*)0x800FC04;
+		uint32_t *scale_u32 =  (uint32_t*)0x800FC08;
+		if(*scale_sign_u32 != 0xa5a5a5a5) {
+			scale.f = DEFAULT_SCALE;
+			printf("scale is unknown! needs fixing (%d != %d)!\r\n",
+					*scale_sign_u32, 0xa5a5a5a5);
+			LCD_WriteLines();
+			Delay(1000000);
+		} else {
+			//scale = *scale_u32;
+			uint32_t scale_u = *scale_u32;
+			scale.u = scale_u;
+			printf("scale is: %u\r\n", (uint32_t) (*scale_u32));
+			if(scale.u == 0xFFFFFFFF || scale.f == 0.0) {
+				scale.f = DEFAULT_SCALE;
+				printf("scale is bad value! needs fixing!\r\n");
+				LCD_WriteLines();
+				Delay(1000000);
+			} else
+				LCD_WriteAll();
+		}
+	}
 
 measures_begin:
-  /* Power on the resistor bridge */
-LCDPowerOn=1;
+	/* Power on the resistor bridge */
+	LCDPowerOn=1;
 
-  is_intial = 1;
-  is_tare_setted = 0;
+	is_intial = 1;
+	is_tare_setted = 0;
 
-  printf("Hello main! Scale is: %d\r\n", scale);
-  TarePressed=0;
+	printf("Hello main! Scale is: %d\r\n", scale);
+	TarePressed=0;
 
-  while(1) {
+while(1) {
 	VoltageFlag = (PWR_GetFlagStatus(PWR_FLAG_PVDO)==SET) ? 0x800 : 0x000;
 	  //read data....
 #if 1
