@@ -25,11 +25,10 @@ uint16_t  SegmentsValues_Lower_Quarter_Digits[4]; /* LCD frame buffer for low
                                                quarter digits (digits 1 -> 4) */
 uint16_t  digit[4];     /* Digit frame buffer */
 
-const  uint16_t  CommonLine[4]={
-                             0x1000,
-							 0x2000,
-							 0x4000,
-							 0x8000
+const  uint16_t  CommonLine[4]={ 0x1000,
+				  0x2000,
+				  0x4000,
+				  0x8000
 };
 
 /* GPIOs to be configured to VDD/2 */
