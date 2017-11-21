@@ -24,19 +24,6 @@
 #include "SystemConfig_RTC.h"
 #include "hx711.h"
 
-
-/** @addtogroup GlassLCD
-  * @{
-  */ 
-
-
-/* Private typedef -----------------------------------------------------------*/
-/* Private define ------------------------------------------------------------*/
-/* Private macro -------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
-/* Private function prototypes -----------------------------------------------*/
-/* Private functions ---------------------------------------------------------*/ 
-
 extern uint16_t  SegmentsValues_Lower_Quarter_Digits[4];
 extern __IO uint32_t LCDPowerOn;
 extern __IO uint32_t TarePressed;
