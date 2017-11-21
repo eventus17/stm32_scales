@@ -201,9 +201,11 @@ void EXTI0_IRQHandler(void)
      LCDPowerOn = 0;
 
 #if 1
+     /* Long press of POWER key shuts down the scale */
 	while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) == Bit_RESET) {};
 	Delay(50000);
 
+	/* Set all the pins as analog inputs for lowest power consumption */
 	 GPIO_InitTypeDef GPIO_InitStructure;
 	 GPIO_InitStructure.GPIO_Pin = GPIO_Pin_All;
 	 GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
@@ -211,8 +213,13 @@ void EXTI0_IRQHandler(void)
 	 GPIO_Init(GPIOB, &GPIO_InitStructure);
 	 GPIO_Init(GPIOC, &GPIO_InitStructure);
 
+	 /* Reset the TARE flag*/
 	 TarePressed=0;
+
+	 /* Enable Wake Up */
 	 PWR_WakeUpPinCmd(ENABLE);
+
+	 /* Enter Standby Mode */
 	 PWR_EnterSTANDBYMode();
 #endif
 
