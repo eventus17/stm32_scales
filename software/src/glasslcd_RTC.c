@@ -14,27 +14,13 @@
   * DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
   * FROM THE CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE
   * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
-  *
-  * <h2><center>&copy; COPYRIGHT 2009 STMicroelectronics</center></h2>
   */ 
 
-
-/* Includes ------------------------------------------------------------------*/
 #include "glasslcd_RTC.h"
 extern __IO uint32_t VoltageFlag;
 
-/** @addtogroup GlassLCD
-  * @{
-  */ 
+#define NumberOfUsedDigits 4  /* For CT4_098 LCD reference */
 
-
-/* Private typedef -----------------------------------------------------------*/
-/* Private define ------------------------------------------------------------*/
- #define NumberOfUsedDigits 4  /* For CT4_098 LCD reference */
-
-/* Private macro -------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
-/* Global variables definition and initialization ----------------------------*/
 uint16_t  SegmentsValues_Lower_Quarter_Digits[4]; /* LCD frame buffer for low 
                                                quarter digits (digits 1 -> 4) */
 uint16_t  digit[4];     /* Digit frame buffer */
@@ -83,10 +69,6 @@ A LCD character coding is based on the following matrix:
 
 
 */
-
-/* Private function prototypes -----------------------------------------------*/
-/* Private functions ---------------------------------------------------------*/
-
 
 /**
   * @brief  Initialize GPIOs to set segments lines and common line
@@ -199,10 +181,5 @@ void LCD_WriteAll()
 	SegmentsValues_Lower_Quarter_Digits[2] = 0xFFF;
 	SegmentsValues_Lower_Quarter_Digits[3] = 0xFFF;
 }
-
-/**
-  * @}
-  */ 
-
 
 /******************* (C) COPYRIGHT 2009 STMicroelectronics *****END OF FILE****/
