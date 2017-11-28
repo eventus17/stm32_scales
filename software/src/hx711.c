@@ -1,11 +1,3 @@
-/*
- * hx711.c
- *
- *  Created on: 15 вер. 2017 р.
- *      Author: tipok
- */
-
-
 #include "stm32f10x.h"
 #include "hx711.h"
 
@@ -62,13 +54,6 @@ int HX711_Value(uint8_t gain)
 
     buffer = buffer ^ 0x800000;
 
-    //if (buffer & 0x800000) {
-    //	buffer |= (long) ~0xffffff;
-    //}
-
-	//if (buffer & 0x800000) {
-	//	buffer |= 0xFF800000;
-	//}
     return buffer;
 }
 
