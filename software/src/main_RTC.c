@@ -130,7 +130,6 @@ do_calc_scale:
 			LCD_WriteLines();
 			Delay(1000000);
 		} else {
-			//scale = *scale_u32;
 			uint32_t scale_u = *scale_u32;
 			scale.u = scale_u;
 			printf("scale is: %u\r\n", (uint32_t) (*scale_u32));
