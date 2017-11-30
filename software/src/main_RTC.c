@@ -1,25 +1,3 @@
-/**
-  ******************************************************************************
-  * @file GlassLCD/src//main_RTC.c 
-  * @author  MCD Application Team
-  * @version  V2.0.0
-  * @date  04/27/2009
-  * @brief  Main program body using RTC method and STOP mode
-  ******************************************************************************
-  * @copy
-  *
-  * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
-  * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE
-  * TIME. AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY
-  * DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
-  * FROM THE CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE
-  * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
-  *
-  * <h2><center>&copy; COPYRIGHT 2009 STMicroelectronics</center></h2>
-  */ 
-
-
-/* Includes ------------------------------------------------------------------*/
 #include "stm32f10x.h"
 #include "SystemConfig_RTC.h"
 #include "hx711.h"
@@ -54,22 +32,16 @@ int _write_r (struct _reent *r, int file, char * ptr, int len) {
 
 void Delay(int val) {
 	__IO uint32_t i = val;
-	for(; i != 0; i--)
-	{
-	}
+	for(; i != 0; i--);
 }
 
 typedef union {
-  float    f;
-  uint32_t u;
+	float f;
+	uint32_t u;
 } sc_t;
 
 #define DEFAULT_SCALE 70.0
-/**
-  * @brief  Main program.
-  * @param  None
-  * @retval : None
-  */
+
 int main(void)
 {
 	int cnt_raw = 0;
@@ -182,86 +154,67 @@ measures_begin:
 	printf("Hello main! Scale is: %d\r\n", scale);
 	TarePressed=0;
 
-while(1) {
-	VoltageFlag = (PWR_GetFlagStatus(PWR_FLAG_PVDO)==SET) ? 0x800 : 0x000;
-	  //read data....
-#if 1
-	if(!LCDPowerOn) {
+	while(1) {
+		VoltageFlag = (PWR_GetFlagStatus(PWR_FLAG_PVDO)==SET) ? 0x800 : 0x000;
+		  //read data....
+		if(!LCDPowerOn) {
 re_sleep:
-		printf("Powering off...\r\n");
-		while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) == Bit_RESET) {};
-		Delay(50000);
-		/* Request to enter STOP mode with regulator low power */
-#if 1
-		GPIO_InitTypeDef GPIO_InitStructure;
-		  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_All;
-		  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
-		  GPIO_Init(GPIOA, &GPIO_InitStructure);
-		  GPIO_Init(GPIOB, &GPIO_InitStructure);
-		  GPIO_Init(GPIOC, &GPIO_InitStructure);
+			printf("Powering off...\r\n");
+			while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) == Bit_RESET);
+			Delay(50000);
+			/* Request to enter STOP mode with regulator low power */
+			GPIO_InitTypeDef GPIO_InitStructure;
+			GPIO_InitStructure.GPIO_Pin = GPIO_Pin_All;
+			GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+			GPIO_Init(GPIOA, &GPIO_InitStructure);
+			GPIO_Init(GPIOB, &GPIO_InitStructure);
+			GPIO_Init(GPIOC, &GPIO_InitStructure);
+			TarePressed=0;
+			PWR_WakeUpPinCmd(ENABLE);
+			PWR_EnterSTANDBYMode();
+			//tune scale
+			if( GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) == Bit_RESET &&
+			    GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_1) == Bit_RESET )
+					goto do_calc_scale;
 
-//		  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2|GPIO_Pin_3|GPIO_Pin_4|GPIO_Pin_6|GPIO_Pin_7|GPIO_Pin_8|
-//				                   GPIO_Pin_9|GPIO_Pin_10|GPIO_Pin_11|GPIO_Pin_12|GPIO_Pin_13|GPIO_Pin_14|GPIO_Pin_15;
-//		  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
-//		  GPIO_Init(GPIOA, &GPIO_InitStructure);
-#endif
-	    TarePressed=0;
-		//PWR_EnterSTOPMode(PWR_Regulator_LowPower, PWR_STOPEntry_WFI);
+			if( GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) != Bit_RESET )
+					goto re_sleep;
 
-		//GPIO_Configuration();
-	    PWR_WakeUpPinCmd(ENABLE);
-		PWR_EnterSTANDBYMode();
-		//tune scale
-		if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) == Bit_RESET && GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_1) == Bit_RESET)
-			goto do_calc_scale;
+				continue;
+		}
 
-		if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) != Bit_RESET)
-			goto re_sleep;
+		cnt_raw = HX711_Average_Value(1, 8);
+		printf("cnt: %d => %d, LCD: %d\r\n", cnt_raw, cnt_raw - tare, (cnt_raw - tare)/scale);
 
-		continue;
-        //RCC->APB1ENR |= RCC_APB1ENR_PWREN;
-        //SCB->SCR |= SCB_SCR_SLEEPDEEP;
-        //PWR->CR |= PWR_CR_PDDS;
-        //PWR->CR |= PWR_CR_CWUF;
-        //PWR->CSR |= PWR_CSR_EWUP;
-        //__WFE();
+		if(is_intial) {
+			is_intial=0;
+			continue;
+		} else if (is_tare_setted) {
+			double val = ((double)cnt_raw - (double)tare)/scale.f;
+			LCD_WriteInt(val);
+		} else {
+			tare=cnt_raw;
+			printf("new tare: %d\r\n", tare);
+			is_tare_setted=1;
+		}
+
+		if( TarePressed==1 && GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_1) == Bit_SET ) {
+			printf("Set tare next time!\r\n");
+			Delay(50000);
+			is_tare_setted=0;
+			TarePressed=0;
+		}
+
+		//if same weight for a long time, go to sleep...
+		if(cnt_raw/1000 != prev_value) {
+			prev_value=cnt_raw/1000;
+			prev_value_count=0;
+		} else {
+			prev_value_count++;
+			if(prev_value_count >= 200)
+				goto re_sleep;
+		}
 	}
-#endif
-
-	cnt_raw = HX711_Average_Value(1, 8);
-	printf("cnt: %d => %d, LCD: %d\r\n", cnt_raw, cnt_raw - tare, (cnt_raw - tare)/scale);
-
-	if(is_intial) {
-		is_intial=0;
-		continue;
-	} else if (is_tare_setted) {
-		double val = ((double)cnt_raw - (double)tare)/scale.f;
-		LCD_WriteInt(val);
-	} else {
-		tare=cnt_raw;
-		printf("new tare: %d\r\n", tare);
-		is_tare_setted=1;
-	}
-
-	if(TarePressed==1 && GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_1) == Bit_SET) {
-		printf("Set tare next time!\r\n");
-		Delay(50000);
-		is_tare_setted=0;
-		TarePressed=0;
-	}
-
-	//if same weight for a long time, go to sleep...
-	if(cnt_raw/1000 != prev_value) {
-		prev_value=cnt_raw/1000;
-		prev_value_count=0;
-	} else {
-		prev_value_count++;
-		if(prev_value_count >= 200)
-			goto re_sleep;
-	}
-
-  }
-
 }
 
 
